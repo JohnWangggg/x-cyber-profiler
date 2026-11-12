@@ -1,0 +1,25 @@
+// ==UserScript==
+// @name         X Cyber-Profiler
+// @namespace    johnwang.x-cyber-profiler
+// @version      1.0.5
+// @description  本地增量画像打标：Jev/LLM 评估 + 生成模型起名。推文文本会发到你配置的接口。只读 DOM，不请求 X 写接口。
+// @author       JohnWangggg
+// @homepageURL  https://github.com/JohnWangggg/x-cyber-profiler
+// @supportURL   https://github.com/JohnWangggg/x-cyber-profiler/issues
+// @updateURL    https://raw.githubusercontent.com/JohnWangggg/x-cyber-profiler/main/dist/x-cyber-profiler.user.js
+// @downloadURL  https://raw.githubusercontent.com/JohnWangggg/x-cyber-profiler/main/dist/x-cyber-profiler.user.js
+// @match        https://x.com/*
+// @match        https://twitter.com/*
+// @run-at       document-idle
+// @grant        GM_xmlhttpRequest
+// @grant        GM_getValue
+// @grant        GM_setValue
+// @grant        GM_deleteValue
+// @grant        GM_addValueChangeListener
+// @grant        GM_removeValueChangeListener
+// @grant        GM_addStyle
+// @grant        GM_registerMenuCommand
+// @connect      127.0.0.1
+// @connect      localhost
+// @connect      *
+// ==/UserScript==

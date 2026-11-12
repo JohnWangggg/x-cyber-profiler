@@ -1,0 +1,9 @@
+.env.local
+.env
+*.key
+node_modules/
+archive/
+最初版本脚本示例.js
+需求.md
+技术方案.md
+详细设计方案.md

@@ -1,0 +1,483 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>X Cyber-Profiler · 标签视觉预览</title>
+<style>
+
+  :root {
+    color-scheme: dark;
+    --bg: #05060a;
+    --panel: rgba(14, 18, 28, .72);
+    --line: rgba(255, 255, 255, .08);
+    --text: #e9edf8;
+    --muted: #8b93a7;
+    --dim: #5f687c;
+    --mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+    --sans: "Noto Sans SC", "Noto Sans JP", "Noto Sans KR", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; min-height: 100%; }
+  body {
+    background:
+      radial-gradient(1100px 700px at 15% -10%, #1b1033 0%, transparent 60%),
+      radial-gradient(900px 600px at 100% 5%, #072a2b 0%, transparent 55%),
+      radial-gradient(800px 500px at 50% 110%, #1a0b1e 0%, transparent 60%),
+      var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    -webkit-font-smoothing: antialiased;
+  }
+  body::before {
+    content: "";
+    position: fixed; inset: 0; pointer-events: none;
+    background-image:
+      linear-gradient(rgba(255,255,255,.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,255,255,.03) 1px, transparent 1px);
+    background-size: 64px 64px;
+    mask-image: radial-gradient(ellipse at 50% 0%, #000 15%, transparent 72%);
+  }
+
+  .wrap { width: min(100% - 40px, 1000px); margin: 0 auto; padding: 54px 0 80px; position: relative; }
+  .eyebrow {
+    font: 600 10px/1 var(--mono); letter-spacing: .24em; text-transform: uppercase;
+    color: #98a1b8;
+  }
+  h1 {
+    margin: 16px 0 12px; font-size: clamp(30px, 5vw, 54px); line-height: 1.04;
+    letter-spacing: -.045em; font-weight: 800;
+    background: linear-gradient(105deg, #ffffff 8%, #c7d2ff 42%, #7ef0d4 78%, #f0abfc 100%);
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+  }
+  h1 span { display: block; }
+  .lede { margin: 0; max-width: 62ch; color: #9aa3b8; line-height: 1.75; font-size: 14px; }
+  .lede b { color: #d9e1f5; font-weight: 600; }
+
+  .legend { display: flex; flex-wrap: wrap; gap: 14px 20px; margin-top: 26px; padding: 14px 16px;
+    border: 1px solid var(--line); border-radius: 14px; background: rgba(255,255,255,.025); }
+  .legend span { display: inline-flex; align-items: center; gap: 7px; font: 500 11px/1 var(--mono); color: #b7c0d4; }
+  .legend i { width: 8px; height: 8px; border-radius: 50%; box-shadow: 0 0 10px currentColor; background: currentColor; }
+  .l-neon { color: #e879f9; } .l-ember { color: #fb923c; } .l-venom { color: #fb7185; }
+  .l-aurora { color: #2dd4bf; } .l-frost { color: #93c5fd; } .l-sakura { color: #f9a8d4; }
+
+  .timeline { margin-top: 34px; display: flex; flex-direction: column; gap: 14px; }
+  .tweet {
+    position: relative; display: grid; grid-template-columns: 46px minmax(0, 1fr); gap: 13px;
+    padding: 18px 20px; border: 1px solid var(--line); border-radius: 18px;
+    background: linear-gradient(180deg, rgba(255,255,255,.045), rgba(255,255,255,.012));
+    overflow: visible;
+  }
+  .tweet:hover { border-color: rgba(255,255,255,.13); }
+  .avatar { width: 46px; height: 46px; border-radius: 50%; position: relative; }
+  .avatar::after { content: ""; position: absolute; inset: -3px; border-radius: 50%; border: 1px solid rgba(255,255,255,.12); }
+  .a1 { background: conic-gradient(from 210deg, #7c3aed, #ec4899, #f59e0b, #7c3aed); }
+  .a2 { background: conic-gradient(from 120deg, #06b6d4, #6366f1, #a855f7, #06b6d4); }
+  .a3 { background: conic-gradient(from 300deg, #10b981, #22d3ee, #84cc16, #10b981); }
+  .a4 { background: conic-gradient(from 30deg, #ef4444, #f97316, #7f1d1d, #ef4444); }
+  .a5 { background: conic-gradient(from 250deg, #f472b6, #fb7185, #fda4af, #f472b6); }
+  .a6 { background: conic-gradient(from 180deg, #475569, #94a3b8, #334155, #475569); }
+
+  .name-row { position: relative; display: flex; align-items: center; gap: 7px; row-gap: 6px; flex-wrap: wrap; min-height: 24px; }
+  .name { font-weight: 700; font-size: 14px; letter-spacing: -.01em; }
+  .verified { width: 15px; height: 15px; flex: 0 0 auto; }
+  .handle { color: var(--dim); font-size: 12px; }
+  .tweet p { margin: 9px 0 0; color: #c8cfe2; line-height: 1.7; font-size: 14px; }
+  .tweet p .link { color: #67e8f9; text-decoration: none; }
+  .meta { margin-top: 12px; display: flex; gap: 18px; color: #6f7890; font-size: 11px; }
+  .meta span { display: inline-flex; align-items: center; gap: 5px; }
+
+  /* ---------- badge ---------- */
+  .xcp-tags { position: relative; display: inline-flex; align-items: center; vertical-align: middle; margin-left: 4px; }
+  .xcp-badge {
+    --a: #a855f7; --b: #f0abfc; --glow: rgba(217,70,239,.5); --gs: 14px;
+    --bg-a: rgba(168,85,247,.22); --bg-b: rgba(236,72,153,.16);
+    --xcp-base: rgba(9, 13, 22, .74);
+    position: relative; display: inline-flex; align-items: center; gap: 6px;
+    height: 22px; padding: 0 9px; border-radius: 999px;
+    font: 600 11px/1 var(--mono); letter-spacing: .015em; white-space: nowrap;
+    color: #fff; user-select: none; overflow: visible;
+    background:
+      linear-gradient(180deg, rgba(255,255,255,.11), rgba(255,255,255,.03)) padding-box,
+      linear-gradient(100deg, var(--bg-a), var(--bg-b)) padding-box,
+      linear-gradient(var(--xcp-base), var(--xcp-base)) padding-box;
+    border: 1px solid color-mix(in srgb, var(--b) 55%, transparent);
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,.20),
+      0 0 var(--gs) -2px var(--glow);
+  }
+  .xcp-badge::after {
+    content: ""; position: absolute; inset: 0; border-radius: inherit; pointer-events: none;
+    background: linear-gradient(110deg, transparent 20%, rgba(255,255,255,.35) 45%, transparent 62%);
+    transform: translateX(-130%);
+    clip-path: inset(0 round 999px);
+  }
+  .xcp-badge.is-new::after { animation: xcp-sheen .9s cubic-bezier(.16,1,.3,1) 1; }
+  .xcp-sigil { color: var(--b); text-shadow: 0 0 10px var(--glow); font-size: 10px; }
+  .xcp-text { max-width: 200px; overflow: hidden; text-overflow: ellipsis; text-shadow: 0 0 14px var(--glow); }
+  .xcp-pips { display: inline-flex; gap: 2px; margin-left: 1px; }
+  .xcp-pips i { width: 3px; height: 9px; border-radius: 2px; background: rgba(255,255,255,.16); }
+  .xcp-pips i.on { background: var(--b); box-shadow: 0 0 8px var(--b); }
+
+  .xcp-vibe-neon { --a:#a855f7; --b:#f0abfc; --glow:rgba(217,70,239,.5); --bg-a:rgba(168,85,247,.22); --bg-b:rgba(236,72,153,.16); }
+  .xcp-vibe-ember { --a:#f59e0b; --b:#fb7185; --glow:rgba(251,113,133,.52); --bg-a:rgba(245,158,11,.22); --bg-b:rgba(251,113,133,.16); }
+  .xcp-vibe-venom { --a:#ef4444; --b:#fb7185; --glow:rgba(248,113,113,.55); --bg-a:rgba(239,68,68,.24); --bg-b:rgba(190,24,93,.16); }
+  .xcp-vibe-aurora { --a:#10b981; --b:#22d3ee; --glow:rgba(34,211,238,.48); --bg-a:rgba(16,185,129,.20); --bg-b:rgba(34,211,238,.15); }
+  .xcp-vibe-frost { --a:#64748b; --b:#93c5fd; --glow:rgba(147,197,253,.38); --bg-a:rgba(100,116,139,.20); --bg-b:rgba(147,197,253,.14); }
+  .xcp-vibe-sakura { --a:#f472b6; --b:#fda4af; --glow:rgba(244,114,182,.45); --bg-a:rgba(244,114,182,.20); --bg-b:rgba(253,164,175,.15); }
+
+  .xcp-ghost { --a:#475569; --b:#94a3b8; --glow:rgba(148,163,184,.18); --bg-a:rgba(255,255,255,.03); --bg-b:rgba(255,255,255,.03); background: rgba(255,255,255,.03); border: 1px dashed rgba(255,255,255,.22); box-shadow: none; color: #9aa3b8; }
+  .xcp-ghost .xcp-sigil { animation: xcp-breathe 2.2s ease-in-out infinite; }
+  .xcp-ghost .xcp-text { text-shadow: none; font-weight: 500; }
+
+  /* ---------- hover card ---------- */
+  .xcp-card {
+    position: absolute; left: 0; top: 30px; width: 316px; padding: 14px 15px 12px;
+    border-radius: 16px; z-index: 60;
+    background: linear-gradient(180deg, rgba(19,24,38,.94), rgba(8,11,19,.97));
+    border: 1px solid rgba(255,255,255,.11);
+    box-shadow: 0 28px 70px -24px #000, inset 0 1px 0 rgba(255,255,255,.08);
+    backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+    opacity: 0; transform: translateY(-5px) scale(.985); pointer-events: none;
+    transition: opacity .18s ease, transform .22s cubic-bezier(.16,1,.3,1);
+  }
+  .xcp-card::before {
+    content: ""; position: absolute; left: 18px; top: -5px; width: 8px; height: 8px;
+    background: #111625; border-left: 1px solid rgba(255,255,255,.11);
+    border-top: 1px solid rgba(255,255,255,.11); transform: rotate(45deg);
+  }
+  .xcp-tags:hover .xcp-card, .xcp-tags:focus-within .xcp-card { opacity: 1; transform: none; pointer-events: auto; }
+  .card-top { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+  .card-label { font: 700 18px/1.2 var(--sans); letter-spacing: -.02em; color: #fff; }
+  .vibe-chip { font: 600 9px/1 var(--mono); letter-spacing: .14em; text-transform: uppercase; color: var(--b); opacity: .9; }
+  .conf { height: 3px; margin: 11px 0 12px; border-radius: 99px; background: rgba(255,255,255,.08); overflow: hidden; }
+  .conf i { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, var(--a), var(--b)); box-shadow: 0 0 12px var(--glow); }
+  .reason { margin: 0 0 12px; color: #d7deee; font-size: 12.5px; line-height: 1.6; }
+  .reason::before { content: "“"; color: var(--b); }
+  .reason::after { content: "”"; color: var(--b); }
+  .note { padding: 9px 10px; border-radius: 10px; background: rgba(255,255,255,.035); border: 1px solid rgba(255,255,255,.06); }
+  .note b, .hist b { display: block; font: 600 9px/1 var(--mono); letter-spacing: .16em; text-transform: uppercase; color: #7f89a0; margin-bottom: 6px; }
+  .note p { margin: 0; color: #aeb8cc; font-size: 11.5px; line-height: 1.6; }
+  .bars { margin: 11px 0 0; display: grid; gap: 5px; }
+  .bar { display: grid; grid-template-columns: 74px 1fr 30px; align-items: center; gap: 7px; font: 500 9px/1 var(--mono); color: #8f99ae; }
+  .bar i { height: 3px; border-radius: 99px; background: rgba(255,255,255,.08); overflow: hidden; }
+  .bar i::after { content: ""; display: block; height: 100%; width: var(--w); background: linear-gradient(90deg, var(--a), var(--b)); opacity: .85; }
+  .hist { margin-top: 11px; }
+  .hist-row { display: flex; align-items: center; gap: 8px; padding: 4px 0; color: #9aa4b9; font-size: 11px; }
+  .hist-row em { font-style: normal; font: 600 9px/1 var(--mono); color: var(--b); opacity: .8; width: 20px; }
+  .hist-row span { color: #c8d0e0; }
+  .card-foot { margin-top: 12px; padding-top: 10px; border-top: 1px solid rgba(255,255,255,.07); color: #6f798e; font: 500 9.5px/1.3 var(--mono); display: flex; justify-content: space-between; }
+
+  /* ---------- evolution ---------- */
+  .section { margin-top: 54px; }
+  .section h2 { margin: 0 0 8px; font-size: 20px; letter-spacing: -.02em; }
+  .section p { margin: 0; color: #8f98ad; font-size: 13px; line-height: 1.7; }
+  .evo { margin-top: 20px; padding: 22px; border: 1px solid var(--line); border-radius: 18px; background: rgba(255,255,255,.025); }
+  .evo-row { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin-top: 16px; }
+  .evo-step { display: flex; flex-direction: column; gap: 8px; }
+  .evo-step em { font: 600 9px/1 var(--mono); letter-spacing: .14em; color: #6f798e; font-style: normal; }
+  .arrow { color: #4d5668; font-size: 18px; }
+
+  .lang-row { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 16px; padding: 18px; border: 1px solid var(--line); border-radius: 16px; background: rgba(255,255,255,.025); }
+
+  .light-demo { margin-top: 18px; padding: 18px; border-radius: 16px; background: #f4f5f8; color: #161922; display: flex; gap: 14px; align-items: center; flex-wrap: wrap; }
+  .light-demo span { font-size: 12px; color: #5c6475; }
+  .xcp-light .xcp-badge { --xcp-base: rgba(255,255,255,.84); box-shadow: inset 0 1px 0 rgba(255,255,255,.9), 0 1px 2px rgba(20,20,40,.12); text-shadow: none; }
+  .xcp-light .xcp-badge::before { opacity: .25; }
+  .xcp-light .xcp-text { color: #1d2230; text-shadow: none; }
+  .xcp-light .xcp-sigil { text-shadow: none; }
+
+  @keyframes xcp-sheen { 0% { transform: translateX(-130%); } 100% { transform: translateX(130%); } }
+  @keyframes xcp-breathe { 0%,100% { opacity: .95; transform: scale(1); } 50% { opacity: .45; transform: scale(.82); } }
+
+  @media (max-width: 560px) {
+    .wrap { width: min(100% - 24px, 1000px); padding-top: 34px; }
+    .tweet { padding: 15px; grid-template-columns: 38px minmax(0,1fr); }
+    .avatar { width: 38px; height: 38px; }
+    .xcp-pips { display: none; }
+    .xcp-card { width: min(316px, calc(100vw - 48px)); }
+    .legend { gap: 10px 14px; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation: none !important; transition: none !important; }
+  }
+</style>
+</head>
+<body>
+<main class="wrap">
+  <div class="eyebrow">X Cyber-Profiler / Label System</div>
+  <h1>让时间线长出<span>会进化的标签</span></h1>
+  <p class="lede">
+    <b>Jev 负责判断，生成模型负责起名。</b>
+    你刷得越多，标签越具体；旧标签不会消失，而是进入进化轨迹。
+    下面是一版可以直接往真实脚本里搬的视觉方向。
+  </p>
+
+  <div class="legend">
+    <span><i class="l-neon"></i>neon · AI/赛博</span>
+    <span><i class="l-ember"></i>ember · 引流/热闹</span>
+    <span><i class="l-venom"></i>venom · 引战/戾气</span>
+    <span><i class="l-aurora"></i>aurora · 真实/技术</span>
+    <span><i class="l-frost"></i>frost · 神秘/中性</span>
+    <span><i class="l-sakura"></i>sakura · 文艺/情绪</span>
+  </div>
+
+  <div class="timeline">
+    <!-- 1 -->
+    <article class="tweet">
+      <div class="avatar a1"></div>
+      <div class="body">
+        <div class="name-row">
+          <span class="name">Web3 Alpha Hunter</span>
+          <svg class="verified" viewBox="0 0 24 24" fill="#1d9bf0" aria-label="认证"><path d="M12 2l2.4 2.1 3.2-.4 1.1 3 3 1.1-.4 3.2L23 12l-2.1 2.4.4 3.2-3 1.1-1.1 3-3.2-.4L12 23l-2.4-2.1-3.2.4-1.1-3-3-1.1.4-3.2L1 12l2.1-2.4-.4-3.2 3-1.1 1.1-3 3.2.4L12 2zm-1.2 13.3l5.1-5.1-1.4-1.4-3.7 3.7-1.8-1.8-1.4 1.4 3.2 3.2z"/></svg>
+          <span class="handle">@crypto_bard · 2h</span>
+          <span class="xcp-tags">
+            <span class="xcp-badge xcp-vibe-ember is-new" tabindex="0" role="button" aria-label="标签：空投布道师；理由：三条推文都在承诺空投收益；第 3 阶段；按 Enter 重评">
+              <span class="xcp-sigil">✦</span>
+              <span class="xcp-text">空投布道师</span>
+              <span class="xcp-pips"><i class="on"></i><i class="on"></i><i></i></span>
+              <span class="xcp-card" role="dialog" aria-label="标签详情">
+                <div class="card-top"><span class="card-label">空投布道师</span><span class="vibe-chip">ember · S3</span></div>
+                <div class="conf"><i style="width:86%"></i></div>
+                <p class="reason">三条推文都在承诺空投收益并引导私信。</p>
+                <div class="note"><b>印象笔记</b><p>以 Web3 导师人设活动，话术熟练，频繁引导站外；对项目方用词高度模板化。</p></div>
+                <div class="bars">
+                  <div class="bar"><span>ad</span><i style="--w:86%"></i><span>.86</span></div>
+                  <div class="bar"><span>promotional</span><i style="--w:90%"></i><span>.90</span></div>
+                  <div class="bar"><span>repetitive</span><i style="--w:60%"></i><span>.60</span></div>
+                </div>
+                <div class="hist"><b>进化轨迹</b>
+                  <div class="hist-row"><em>S1</em><span>Web3 博主</span></div>
+                  <div class="hist-row"><em>S2</em><span>空投猎人</span></div>
+                  <div class="hist-row"><em>S3</em><span>空投布道师</span></div>
+                </div>
+                <div class="card-foot"><span>双击 / Enter 重评</span><span>隐藏</span></div>
+              </span>
+            </span>
+          </span>
+        </div>
+        <p>Pinned: 100x gem loading. Join my TG for the whitelist before it closes. <a class="link" href="#">t.me/…</a></p>
+        <div class="meta"><span>♡ 128</span><span>⇄ 64</span><span>◌ 2.1K</span></div>
+      </div>
+    </article>
+
+    <!-- 2 -->
+    <article class="tweet">
+      <div class="avatar a2"></div>
+      <div class="body">
+        <div class="name-row">
+          <span class="name">Aki</span>
+          <span class="handle">@ai_repeater · 4h</span>
+          <span class="xcp-tags">
+            <span class="xcp-badge xcp-vibe-neon" tabindex="0" role="button" aria-label="ラベル：AIリピーター；理由：同じ褒め言葉を繰り返す；第 2 段階">
+              <span class="xcp-sigil">◈</span>
+              <span class="xcp-text">AIリピーター</span>
+              <span class="xcp-pips"><i class="on"></i><i class="on"></i><i></i></span>
+              <span class="xcp-card">
+                <div class="card-top"><span class="card-label">AIリピーター</span><span class="vibe-chip">neon · S2</span></div>
+                <div class="conf"><i style="width:74%"></i></div>
+                <p class="reason">同じ褒め言葉を異なる投稿に繰り返している。</p>
+                <div class="note"><b>印象メモ</b><p>返信の文体が固定され、内容の具体性が低い。絵文字の使い方も毎回ほぼ同じ。</p></div>
+                <div class="bars">
+                  <div class="bar"><span>bot</span><i style="--w:74%"></i><span>.74</span></div>
+                  <div class="bar"><span>repetitive</span><i style="--w:88%"></i><span>.88</span></div>
+                  <div class="bar"><span>informative</span><i style="--w:12%"></i><span>.12</span></div>
+                </div>
+                <div class="hist"><b>進化</b><div class="hist-row"><em>S1</em><span>親切な返信者</span></div></div>
+                <div class="card-foot"><span>ダブルクリック / Enter</span><span>隠す</span></div>
+              </span>
+            </span>
+          </span>
+        </div>
+        <p>Great insight! Totally agree with your point 🔥🔥</p>
+        <div class="meta"><span>♡ 12</span><span>⇄ 1</span><span>◌ 240</span></div>
+      </div>
+    </article>
+
+    <!-- 3 -->
+    <article class="tweet">
+      <div class="avatar a3"></div>
+      <div class="body">
+        <div class="name-row">
+          <span class="name">Mira Chen</span>
+          <span class="handle">@kind_soul · 6h</span>
+          <span class="xcp-tags">
+            <span class="xcp-badge xcp-vibe-aurora" tabindex="0" role="button" aria-label="标签：赛博菩萨；理由：认真给出可复现的排错步骤；第 4 阶段">
+              <span class="xcp-sigil">✧</span>
+              <span class="xcp-text">赛博菩萨</span>
+              <span class="xcp-pips"><i class="on"></i><i class="on"></i><i class="on"></i></span>
+              <span class="xcp-card">
+                <div class="card-top"><span class="card-label">赛博菩萨</span><span class="vibe-chip">aurora · S4</span></div>
+                <div class="conf"><i style="width:93%"></i></div>
+                <p class="reason">认真给出可复现的排错步骤，还补了最小示例。</p>
+                <div class="note"><b>印象笔记</b><p>前端/构建工具方向，回答具体、愿意解释原因；偶尔分享调试技巧，不推销。</p></div>
+                <div class="bars">
+                  <div class="bar"><span>organic</span><i style="--w:93%"></i><span>.93</span></div>
+                  <div class="bar"><span>informative</span><i style="--w:91%"></i><span>.91</span></div>
+                  <div class="bar"><span>expert</span><i style="--w:84%"></i><span>.84</span></div>
+                </div>
+                <div class="hist"><b>进化轨迹</b>
+                  <div class="hist-row"><em>S1</em><span>认真回帖的人</span></div>
+                  <div class="hist-row"><em>S3</em><span>前端排错侠</span></div>
+                  <div class="hist-row"><em>S4</em><span>赛博菩萨</span></div>
+                </div>
+                <div class="card-foot"><span>双击 / Enter 重评</span><span>隐藏</span></div>
+              </span>
+            </span>
+          </span>
+        </div>
+        <p>If your Vite build hangs on the first run, check the symlink in node_modules/.vite — here's a 20-line repro.</p>
+        <div class="meta"><span>♡ 1.4K</span><span>⇄ 180</span><span>◌ 9.8K</span></div>
+      </div>
+    </article>
+
+    <!-- 4 -->
+    <article class="tweet">
+      <div class="avatar a4"></div>
+      <div class="body">
+        <div class="name-row">
+          <span class="name">The Reply Guy</span>
+          <span class="handle">@rage_baiter · 8h</span>
+          <span class="xcp-tags">
+            <span class="xcp-badge xcp-vibe-venom" tabindex="0" role="button" aria-label="Label: Rage Bait; reason: personal attacks with no argument; stage 1">
+              <span class="xcp-sigil">▲</span>
+              <span class="xcp-text">Rage Bait</span>
+              <span class="xcp-pips"><i class="on"></i><i></i><i></i></span>
+              <span class="xcp-card">
+                <div class="card-top"><span class="card-label">Rage Bait</span><span class="vibe-chip">venom · S1</span></div>
+                <div class="conf"><i style="width:61%"></i></div>
+                <p class="reason">Personal attacks with no argument or evidence.</p>
+                <div class="note"><b>Dossier</b><p>High-frequency reply account; escalates threads with insults. No original posts yet.</p></div>
+                <div class="bars">
+                  <div class="bar"><span>toxic</span><i style="--w:61%"></i><span>.61</span></div>
+                  <div class="bar"><span>hostile</span><i style="--w:82%"></i><span>.82</span></div>
+                  <div class="bar"><span>informative</span><i style="--w:04%"></i><span>.04</span></div>
+                </div>
+                <div class="hist"><b>History</b><div class="hist-row"><em>S1</em><span>Rage Bait</span></div></div>
+                <div class="card-foot"><span>Double-click / Enter</span><span>Hide</span></div>
+              </span>
+            </span>
+          </span>
+        </div>
+        <p>This is the worst take I've seen all week. Imagine being this confidently wrong.</p>
+        <div class="meta"><span>♡ 3</span><span>⇄ 0</span><span>◌ 88</span></div>
+      </div>
+    </article>
+
+    <!-- 5 -->
+    <article class="tweet">
+      <div class="avatar a5"></div>
+      <div class="body">
+        <div class="name-row">
+          <span class="name">yuki</span>
+          <span class="handle">@glitch_poet · 9h</span>
+          <span class="xcp-tags">
+            <span class="xcp-badge xcp-vibe-sakura" tabindex="0" role="button" aria-label="タグ：Glitch Poet；理由：断片的な詩と画像；第 3 段階">
+              <span class="xcp-sigil">◆</span>
+              <span class="xcp-text">Glitch Poet</span>
+              <span class="xcp-pips"><i class="on"></i><i class="on"></i><i></i></span>
+              <span class="xcp-card">
+                <div class="card-top"><span class="card-label">Glitch Poet</span><span class="vibe-chip">sakura · S3</span></div>
+                <div class="conf"><i style="width:79%"></i></div>
+                <p class="reason">断片的な詩と夜景の写真を交互に投稿している。</p>
+                <div class="note"><b>印象メモ</b><p>低頻度だが文体が一貫している。告知やリンクはほぼない。夜中に投稿が多い。</p></div>
+                <div class="bars">
+                  <div class="bar"><span>organic</span><i style="--w:79%"></i><span>.79</span></div>
+                  <div class="bar"><span>personal</span><i style="--w:88%"></i><span>.88</span></div>
+                  <div class="bar"><span>promotional</span><i style="--w:03%"></i><span>.03</span></div>
+                </div>
+                <div class="hist"><b>進化</b>
+                  <div class="hist-row"><em>S1</em><span>夜の投稿者</span></div>
+                  <div class="hist-row"><em>S2</em><span>写真と短歌</span></div>
+                  <div class="hist-row"><em>S3</em><span>Glitch Poet</span></div>
+                </div>
+                <div class="card-foot"><span>ダブルクリック / Enter</span><span>隠す</span></div>
+              </span>
+            </span>
+          </span>
+        </div>
+        <p>午前二時、信号の赤だけが詩を覚えている。</p>
+        <div class="meta"><span>♡ 402</span><span>⇄ 21</span><span>◌ 1.2K</span></div>
+      </div>
+    </article>
+
+    <!-- 6 -->
+    <article class="tweet">
+      <div class="avatar a6"></div>
+      <div class="body">
+        <div class="name-row">
+          <span class="name">new voice</span>
+          <span class="handle">@new_voice · 1m</span>
+          <span class="xcp-tags">
+            <span class="xcp-badge xcp-ghost">
+              <span class="xcp-sigil">●</span>
+              <span class="xcp-text">正在生成第一印象…</span>
+            </span>
+          </span>
+        </div>
+        <p>hello, I just moved here. what's the best way to meet people who build things?</p>
+        <div class="meta"><span>♡ 0</span><span>⇄ 0</span><span>◌ 12</span></div>
+      </div>
+    </article>
+  </div>
+
+  <section class="section">
+    <h2>多语言标签</h2>
+    <p>标签语言跟随设置，样本原文不翻译。中文、英文、日文、韩文、西语、俄语各自使用脚本感知的长度与字体。</p>
+    <div class="lang-row">
+      <span class="xcp-badge xcp-vibe-ember"><span class="xcp-sigil">✦</span><span class="xcp-text">百倍空投广播</span><span class="xcp-pips"><i class="on"></i><i class="on"></i><i></i></span></span>
+      <span class="xcp-badge xcp-vibe-neon"><span class="xcp-sigil">◈</span><span class="xcp-text">AI Repeater</span><span class="xcp-pips"><i class="on"></i><i class="on"></i><i></i></span></span>
+      <span class="xcp-badge xcp-vibe-aurora"><span class="xcp-sigil">✧</span><span class="xcp-text">深夜の哲学者</span><span class="xcp-pips"><i class="on"></i><i class="on"></i><i class="on"></i></span></span>
+      <span class="xcp-badge xcp-vibe-sakura"><span class="xcp-sigil">◆</span><span class="xcp-text">새벽 감성러</span><span class="xcp-pips"><i class="on"></i><i class="on"></i><i></i></span></span>
+      <span class="xcp-badge xcp-vibe-frost"><span class="xcp-sigil">●</span><span class="xcp-text">Poeta del Glitch</span><span class="xcp-pips"><i class="on"></i><i></i><i></i></span></span>
+      <span class="xcp-badge xcp-vibe-venom"><span class="xcp-sigil">▲</span><span class="xcp-text">Крипто-зазывала</span><span class="xcp-pips"><i class="on"></i><i class="on"></i><i></i></span></span>
+    </div>
+  </section>
+
+  <section class="section">
+    <h2>同一个人，刷得越多越清楚</h2>
+    <p>每次评估都会更新“印象笔记”；只有评估分布真的变了，才重新起名。标签不抖，记忆在长。</p>
+    <div class="evo">
+      <div class="evo-row">
+        <div class="evo-step">
+          <em>S1 · 1 条样本</em>
+          <span class="xcp-badge xcp-vibe-frost" style="--gs:8px"><span class="xcp-sigil">◇</span><span class="xcp-text">Web3 博主</span><span class="xcp-pips"><i class="on"></i><i></i><i></i></span></span>
+        </div>
+        <div class="arrow">→</div>
+        <div class="evo-step">
+          <em>S2 · 3 条样本</em>
+          <span class="xcp-badge xcp-vibe-ember" style="--gs:12px"><span class="xcp-sigil">✦</span><span class="xcp-text">空投猎人</span><span class="xcp-pips"><i class="on"></i><i class="on"></i><i></i></span></span>
+        </div>
+        <div class="arrow">→</div>
+        <div class="evo-step">
+          <em>S3 · 6 条样本</em>
+          <span class="xcp-badge xcp-vibe-ember is-new" style="--gs:16px"><span class="xcp-sigil">✦</span><span class="xcp-text">空投布道师</span><span class="xcp-pips"><i class="on"></i><i class="on"></i><i></i></span></span>
+        </div>
+        <div class="arrow">→</div>
+        <div class="evo-step">
+          <em>S5 · 16 条样本</em>
+          <span class="xcp-badge xcp-vibe-ember" style="--gs:20px"><span class="xcp-sigil">✦</span><span class="xcp-text">空投布道师 · 话术模板化</span><span class="xcp-pips"><i class="on"></i><i class="on"></i><i class="on"></i></span></span>
+        </div>
+      </div>
+    </div>
+
+    <div class="light-demo xcp-light">
+      <span>浅色模式兜底：</span>
+      <span class="xcp-badge xcp-vibe-aurora"><span class="xcp-sigil">✧</span><span class="xcp-text">赛博菩萨</span><span class="xcp-pips"><i class="on"></i><i class="on"></i><i class="on"></i></span></span>
+      <span class="xcp-badge xcp-vibe-ember"><span class="xcp-sigil">✦</span><span class="xcp-text">空投布道师</span><span class="xcp-pips"><i class="on"></i><i class="on"></i><i></i></span></span>
+      <span>白底、深字、去发光，不另做一套色盘。</span>
+    </div>
+  </section>
+
+  <section class="section">
+    <h2>这版视觉的关键决定</h2>
+    <p>
+      徽章本身不用毛玻璃，避免同屏几十个模糊层；毛玻璃只留给悬停卡。
+      符号由 handle 哈希决定，同一个人永远同一枚；阶段用小竖条而不是文字，减少宽度。
+      颜色只表达气质，不表达“判决”；真正的原因、置信度和进化轨迹放在卡片里。
+    </p>
+  </section>
+</main>
+</body>
+</html>

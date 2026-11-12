@@ -1,0 +1,17 @@
+{
+  "name": "x-cyber-profiler",
+  "version": "1.0.5",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test test/*.test.js",
+    "build": "node tools/assemble.mjs",
+    "check": "node tools/assemble.mjs --check",
+    "check:exports": "node tools/check-exports.mjs",
+    "smoke": "node tools/smoke.mjs",
+    "probe:jev": "node --use-env-proxy tools/jev-probe.mjs",
+    "probe:jev:dry": "node tools/jev-probe.mjs --dry",
+    "probe:app": "node --use-env-proxy tools/jev-app-probe.mjs",
+    "release": "node tools/release.mjs"
+  }
+}
